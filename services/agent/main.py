@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import Dict, List
 from datetime import date, datetime
 import asyncio
@@ -14,12 +14,16 @@ from dotenv import load_dotenv
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from shared.database import get_db, engine
-from shared.models import Base, User, Client, Setting, Attribute, Communication
+from shared.models import Base, User, Client, Setting, Attribute, Communication, Template
 
 load_dotenv()
 
 QUESTION_ENDPOINT = os.getenv("QUESTION_ENDPOINT", "/question")
 ANSWER_ENDPOINT = os.getenv("ANSWER_ENDPOINT", "/answer")
+CLIENT_ENDPOINT = os.getenv("CLIENT_ENDPOINT", "/client")
+PRODUCTS_ENDPOINT = os.getenv("PRODUCT_ENDPOINT", "/products")
+RULES_ENDPOINT = os.getenv("RULES_ENDPOINT", "/rules")
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -62,7 +66,7 @@ manager = ConnectionManager()
 
 async def call_n8n_webhook(db: Session, user: User, client: Client, text: str):
     webhook_setting = db.query(Setting).filter(Setting.key == "URL_AGENT").first()
-    answer_setting = db.query(Setting).filter(Setting.key == "URL_ANSWER_HOST").first()
+    host_setting = db.query(Setting).filter(Setting.key == "URL_HOST").first()
     if webhook_setting and webhook_setting.value:
         webhook_url = webhook_setting.value
 
@@ -72,7 +76,11 @@ async def call_n8n_webhook(db: Session, user: User, client: Client, text: str):
 
         payload = {
             "session_id": user.session_id,
-            "answer_ep": f"{answer_setting.value}:{agent_port}{ANSWER_ENDPOINT}",
+            "answer_ep": f"{host_setting.value}:{agent_port}{ANSWER_ENDPOINT}",
+            "client_ep": f"{host_setting.value}:{agent_port}{CLIENT_ENDPOINT}",
+            "rule_ep": f"{host_setting.value}:{agent_port}{RULES_ENDPOINT}",
+            "product_ep": f"{host_setting.value}:{agent_port}{PRODUCTS_ENDPOINT}",
+
             "prompt": prompt,
         }
         try:
@@ -136,6 +144,68 @@ async def add_response(session_id: str, db: Session = Depends(get_db)):
 
     return {"status": "notification sent"}
 
+
+@app.get(PRODUCTS_ENDPOINT)
+async def get_products(session_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).options(joinedload(User.client)).filter(User.session_id == session_id).first()
+
+    if not user or not user.client:
+        raise HTTPException(status_code=404, detail="User or associated client with the specified session_id not found")
+
+    client = user.client
+
+    if client.product_api:
+        products_url = client.product_api
+        try:
+            async with httpx.AsyncClient() as http_client:
+                response = await http_client.get(products_url)
+                response.raise_for_status()
+                return response.json()
+        except (httpx.RequestError, httpx.HTTPStatusError) as exc:
+            print(f"Error fetching products from {products_url}: {exc}")
+            raise HTTPException(
+                status_code=502,
+                detail="Could not retrieve product list from the external source."
+            )
+        except json.JSONDecodeError:
+            print(f"Malformed JSON response from {products_url}")
+            raise HTTPException(status_code=500, detail="The product data from the external source is malformed.")
+
+    if client.product_list:
+        return [item.strip() for item in client.product_list.split(',')]
+
+    raise HTTPException(status_code=404, detail="No product list has been defined for this client.")
+
+
+@app.get(RULES_ENDPOINT)
+async def get_rules(session_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).options(joinedload(User.client)).filter(User.session_id == session_id).first()
+
+    if not user or not user.client:
+        raise HTTPException(status_code=404, detail="User or associated client with the specified session_id not found")
+
+    client = user.client
+
+    attributes_with_templates = db.query(
+        Template.description,
+        Attribute.value
+    ).join(
+        Attribute, Template.id == Attribute.template_id
+    ).filter(
+        Attribute.client_id == client.id
+    ).all()
+
+    return {description: value for description, value in attributes_with_templates}
+
+
+@app.get(CLIENT_ENDPOINT)
+async def get_client_data(session_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).options(joinedload(User.client)).filter(User.session_id == session_id).first()
+
+    if not user or not user.client:
+        raise HTTPException(status_code=404, detail="User or associated client with the specified session_id not found")
+
+    return {"description": user.client.description}
 
 @app.websocket("/ws/{user_id}")
 async def websocket_endpoint(websocket: WebSocket, user_id: int):

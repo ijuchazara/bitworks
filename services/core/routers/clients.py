@@ -17,12 +17,18 @@ router = APIRouter()
 class ClientCreate(BaseModel):
     client_code: str
     name: str
+    description: Optional[str] = None
+    product_api: Optional[str] = None
+    product_list: Optional[str] = None
     attributes: Dict[str, str] = Field(default_factory=dict)
 
 
 class ClientUpdate(BaseModel):
     name: Optional[str] = None
+    description: Optional[str] = None
     status: Optional[str] = None
+    product_api: Optional[str] = None
+    product_list: Optional[str] = None
     attributes: Optional[Dict[str, str]] = None
 
 
@@ -34,8 +40,11 @@ class ClientResponse(BaseModel):
     id: int
     client_code: str
     name: str
+    description: Optional[str] = None
     status: str
     created_at: datetime
+    product_api: Optional[str] = None
+    product_list: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -68,7 +77,14 @@ def create_client(client_data: ClientCreate, db: Session = Depends(get_db)):
     if db_client_name:
         raise HTTPException(status_code=400, detail="Client with this name already exists")
 
-    db_client = Client(client_code=client_data.client_code, name=client_data.name, status='Activo')
+    db_client = Client(
+        client_code=client_data.client_code,
+        name=client_data.name,
+        description=client_data.description,
+        status='Activo',
+        product_api=client_data.product_api,
+        product_list=client_data.product_list
+    )
     db.add(db_client)
 
     # Pre-fetch all relevant templates to avoid N+1 queries

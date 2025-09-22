@@ -30,6 +30,8 @@ import {
   ListItemIcon,
   Chip,
   Snackbar,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import PlusIcon from '@heroicons/react/24/solid/PlusIcon';
 import PencilIcon from '@heroicons/react/24/solid/PencilIcon';
@@ -48,6 +50,9 @@ export default function ClientsPage() {
   const [newClient, setNewClient] = useState({
     client_code: '',
     name: '',
+    description: '',
+    product_api: '',
+    product_list: '',
   });
   const [templateValues, setTemplateValues] = useState<Record<string, string>>({});
   const [isEditModalOpen, setEditModalOpen] = useState(false);
@@ -63,6 +68,7 @@ export default function ClientsPage() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
+  const [tabValue, setTabValue] = useState(0);
   const router = useRouter();
 
   const fetchClients = async () => {
@@ -111,16 +117,18 @@ export default function ClientsPage() {
   }, []);
 
   const handleOpenCreateModal = () => {
-    setNewClient({ client_code: '', name: '' }); // Reset form
-    setTemplateValues({}); // Reset template values
-    setCreateError(null); // Clear previous errors
+    setNewClient({ client_code: '', name: '', description: '', product_api: '', product_list: '' });
+    setTemplateValues({});
+    setCreateError(null);
+    setTabValue(0);
     setCreateModalOpen(true);
   };
 
   const handleOpenEditModal = (client: Client) => {
-    setEditingClient({ ...client }); // Create a copy to avoid editing the state directly
-    setEditTemplateValues({}); // Reset first to clear old data
+    setEditingClient({ ...client });
+    setEditTemplateValues({});
     setEditError(null);
+    setTabValue(0);
     setEditModalOpen(true);
 
     const fetchAttributes = async () => {
@@ -182,6 +190,10 @@ export default function ClientsPage() {
     setSnackbarOpen(false);
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
   const handleTemplateValueChange = (templateKey: string, value: string) => {
     setTemplateValues(prev => ({ ...prev, [templateKey]: value }));
   };
@@ -195,10 +207,9 @@ export default function ClientsPage() {
     const onChange = (e: React.ChangeEvent<HTMLInputElement>) => valueChangeHandler(template.key, e.target.value);
     const commonProps = {
       fullWidth: true,
-      variant: 'standard' as const,
+      label: template.description,
       value,
       onChange,
-      InputProps: { disableUnderline: true },
     };
 
     switch (template.data_type) {
@@ -211,7 +222,7 @@ export default function ClientsPage() {
       case 'type_datetime':
         return <TextField {...commonProps} type="datetime-local" InputLabelProps={{ shrink: true }} />;
       case 'type_text':
-        return <TextField {...commonProps} multiline rows={2} />;
+        return <TextField {...commonProps} multiline rows={3} />;
       case 'type_string':
       default:
         return <TextField {...commonProps} type="text" />;
@@ -230,7 +241,10 @@ export default function ClientsPage() {
         },
         body: JSON.stringify({
           name: editingClient.name,
+          description: editingClient.description,
           status: editingClient.status,
+          product_api: editingClient.product_api,
+          product_list: editingClient.product_list,
           attributes: editTemplateValues,
         }),
       });
@@ -454,47 +468,76 @@ export default function ClientsPage() {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {createError && <Typography color="error" variant="body2">{createError}</Typography>}
-            <TextField
-              autoFocus
-              required
-              margin="dense"
-              label="Client Code"
-              type="text"
-              fullWidth
-              value={newClient.client_code}
-              onChange={(e) => setNewClient({ ...newClient, client_code: e.target.value })}
-            />
-            <TextField
-              required
-              margin="dense"
-              label="Name"
-              type="text"
-              fullWidth
-              value={newClient.name}
-              onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-            />
-            <Divider sx={{ my: 2 }}>
-              <Chip label="Attributes" />
-            </Divider>
-            <Box sx={{ maxHeight: 300, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Attribute</TableCell>
-                    <TableCell>Value</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+              <Tabs value={tabValue} onChange={handleTabChange} aria-label="client details tabs" variant="fullWidth">
+                <Tab label="Client" />
+                <Tab label="Productos" />
+                <Tab label="Rules" />
+              </Tabs>
+            </Box>
+            <Box sx={{ minHeight: 400 }}>
+              <Box hidden={tabValue !== 0} sx={{ pt: 2 }}>
+                <Stack spacing={2}>
+                  <TextField
+                    autoFocus
+                    required
+                    margin="dense"
+                    label="Client Code"
+                    type="text"
+                    fullWidth
+                    value={newClient.client_code}
+                    onChange={(e) => setNewClient({ ...newClient, client_code: e.target.value })}
+                  />
+                  <TextField
+                    required
+                    margin="dense"
+                    label="Name"
+                    type="text"
+                    fullWidth
+                    value={newClient.name}
+                    onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
+                  />
+                  <TextField
+                    margin="dense"
+                    label="Description"
+                    type="text"
+                    fullWidth
+                    multiline
+                    rows={3}
+                    value={newClient.description}
+                    onChange={(e) => setNewClient({ ...newClient, description: e.target.value })}
+                  />
+                </Stack>
+              </Box>
+              <Box hidden={tabValue !== 1} sx={{ pt: 2 }}>
+                <Stack spacing={2}>
+                  <TextField
+                    margin="dense"
+                    label="Product API URL"
+                    type="text"
+                    fullWidth
+                    value={newClient.product_api}
+                    onChange={(e) => setNewClient({ ...newClient, product_api: e.target.value })}
+                  />
+                  <TextField
+                    margin="dense"
+                    label="Product List"
+                    type="text"
+                    fullWidth
+                    multiline
+                    rows={4}
+                    value={newClient.product_list}
+                    onChange={(e) => setNewClient({ ...newClient, product_list: e.target.value })}
+                  />
+                </Stack>
+              </Box>
+              <Box hidden={tabValue !== 2} sx={{ pt: 2, maxHeight: 380, overflow: 'auto', pr: 1 }}>
+                <Stack spacing={3}>
                   {templates.map(template => (
-                    <TableRow key={template.id}>
-                      <TableCell sx={{ whiteSpace: 'nowrap' }}>{template.description}</TableCell>
-                      <TableCell>
-                        {renderAttributeInput(template, templateValues, handleTemplateValueChange)}
-                      </TableCell>
-                    </TableRow>
+                    <div key={template.id}>{renderAttributeInput(template, templateValues, handleTemplateValueChange)}</div>
                   ))}
-                </TableBody>
-              </Table>
+                </Stack>
+              </Box>
             </Box>
           </Stack>
         </DialogContent>
@@ -513,50 +556,88 @@ export default function ClientsPage() {
                   {editError}
                 </Typography>
               )}
-              <TextField disabled margin="dense" label="Client Code" type="text" fullWidth value={editingClient.client_code} />
-              <TextField
-                required
-                margin="dense"
-                label="Name"
-                type="text"
-                fullWidth
-                value={editingClient.name}
-                onChange={(e) => setEditingClient(prev => (prev ? { ...prev, name: e.target.value } : null))}
-              />
-              <TextField
-                required
-                select
-                margin="dense"
-                label="Status"
-                fullWidth
-                value={editingClient.status}
-                onChange={(e) => setEditingClient(prev => (prev ? { ...prev, status: e.target.value } : null))}
-              >
-                <MenuItem value="Activo">Activo</MenuItem>
-                <MenuItem value="Inactivo">Inactivo</MenuItem>
-              </TextField>
-              <Divider sx={{ my: 2 }}>
-                <Chip label="Attributes" />
-              </Divider>
-              <Box sx={{ maxHeight: 300, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Attribute</TableCell>
-                      <TableCell>Value</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider', mt: 2 }}>
+                <Tabs value={tabValue} onChange={handleTabChange} aria-label="client details tabs" variant="fullWidth">
+                  <Tab label="Client" />
+                  <Tab label="Products" />
+                  <Tab label="Rules" />
+                </Tabs>
+              </Box>
+              <Box sx={{ minHeight: 400 }}>
+                <Box hidden={tabValue !== 0} sx={{ pt: 2 }}>
+                  <Stack spacing={2}>
+                    <TextField
+                      disabled
+                      margin="dense"
+                      label="Client Code"
+                      type="text"
+                      fullWidth
+                      value={editingClient.client_code}
+                    />
+                    <TextField
+                      required
+                      margin="dense"
+                      label="Name"
+                      type="text"
+                      fullWidth
+                      value={editingClient.name}
+                      onChange={(e) => setEditingClient(prev => (prev ? { ...prev, name: e.target.value } : null))}
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Description"
+                      type="text"
+                      fullWidth
+                      multiline
+                      rows={3}
+                      value={editingClient.description || ''}
+                      onChange={(e) => setEditingClient(prev => (prev ? { ...prev, description: e.target.value } : null))}
+                    />
+                    <TextField
+                      required
+                      select
+                      margin="dense"
+                      label="Status"
+                      fullWidth
+                      value={editingClient.status}
+                      onChange={(e) => setEditingClient(prev => (prev ? { ...prev, status: e.target.value } : null))}
+                    >
+                      <MenuItem value="Activo">Activo</MenuItem>
+                      <MenuItem value="Inactivo">Inactivo</MenuItem>
+                    </TextField>
+                  </Stack>
+                </Box>
+                <Box hidden={tabValue !== 1} sx={{ pt: 2 }}>
+                  <Stack spacing={2}>
+                    <TextField
+                      margin="dense"
+                      label="Product API URL"
+                      type="text"
+                      fullWidth
+                      value={editingClient.product_api || ''}
+                      onChange={(e) => setEditingClient(prev => (prev ? { ...prev, product_api: e.target.value } : null))}
+                    />
+                    <TextField
+                      margin="dense"
+                      label="Product List"
+                      type="text"
+                      fullWidth
+                      multiline
+                      rows={4}
+                      value={editingClient.product_list || ''}
+                      onChange={(e) =>
+                        setEditingClient(prev => (prev ? { ...prev, product_list: e.target.value } : null))
+                      }
+                    />
+                  </Stack>
+                </Box>
+                <Box hidden={tabValue !== 2} sx={{ pt: 2, maxHeight: 380, overflow: 'auto', pr: 1 }}>
+                  <Stack spacing={3}>
                     {templates.map(template => (
-                      <TableRow key={template.id}>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{template.description}</TableCell>
-                        <TableCell>
-                          {renderAttributeInput(template, editTemplateValues, handleEditTemplateValueChange)}
-                        </TableCell>
-                      </TableRow>
+                      <div key={template.id}>{renderAttributeInput(template, editTemplateValues, handleEditTemplateValueChange)}</div>
                     ))}
-                  </TableBody>
-                </Table>
+                  </Stack>
+                </Box>
               </Box>
             </Stack>
           </DialogContent>

@@ -61,6 +61,8 @@ export default function UsersPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [isIntegrityErrorModalOpen, setIntegrityErrorModalOpen] = useState(false);
+  const [integrityErrorMessage, setIntegrityErrorMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'info' | 'warning'>('success');
   const router = useRouter();
 
@@ -228,28 +230,28 @@ export default function UsersPage() {
 
   const handleConfirmDelete = async () => {
     if (!userToDelete) return;
-    try {
-      const response = await fetch(`/api/users/${userToDelete.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Failed to delete user.' }));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
-      }
+
+    const response = await fetch(`/api/users/${userToDelete.id}`, {
+      method: 'DELETE',
+    });
+
+    setDeleteModalOpen(false); // Close confirmation dialog
+
+    if (response.ok) {
       setUsers(prevUsers => prevUsers.filter(u => u.id !== userToDelete.id));
       showNotification('User deleted successfully!', 'success');
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('An unexpected error occurred while deleting.');
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      const detailMessage = errorData.detail || 'An unknown error occurred while deleting.';
+
+      if (response.status === 409) { // Conflict
+        setIntegrityErrorMessage(detailMessage);
+        setIntegrityErrorModalOpen(true);
+      } else { // Other errors
+        showNotification(detailMessage, 'error');
       }
-      showNotification(error || 'Error deleting user.', 'error');
-      console.error('Error deleting user:', err);
-    } finally {
-      setDeleteModalOpen(false);
-      setUserToDelete(null);
     }
+    setUserToDelete(null);
   };
 
   if (loading) {
@@ -411,6 +413,21 @@ export default function UsersPage() {
         <DialogActions>
           <Button onClick={() => setDeleteModalOpen(false)}>Cancel</Button>
           <Button onClick={handleConfirmDelete} variant="contained" color="error" autoFocus>Delete</Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog
+        open={isIntegrityErrorModalOpen}
+        onClose={() => setIntegrityErrorModalOpen(false)}
+        aria-labelledby="integrity-error-dialog-title"
+      >
+        <DialogTitle id="integrity-error-dialog-title">Deletion Failed</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {integrityErrorMessage}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIntegrityErrorModalOpen(false)} autoFocus>OK</Button>
         </DialogActions>
       </Dialog>
       <Snackbar open={snackbarOpen} autoHideDuration={5000} onClose={handleSnackbarClose} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>

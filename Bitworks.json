@@ -10,10 +10,10 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 2.2,
       "position": [
-        176,
-        -16
+        1376,
+        -784
       ],
-      "id": "4580c166-25d9-45fe-9b0a-9730658c9033",
+      "id": "a2b77448-a94c-46bb-9344-afbbde3dd254",
       "name": "AI Agent"
     },
     {
@@ -23,14 +23,14 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        176,
-        208
+        1376,
+        -272
       ],
-      "id": "698b82e5-9073-429d-930f-9346b02a39aa",
+      "id": "7557bf77-8a7f-4e48-acd0-0c5cbdba20f3",
       "name": "Google Gemini Chat Model",
       "credentials": {
         "googlePalmApi": {
-          "id": "3eQyrgnDJrvCtthx",
+          "id": "TXrG7K6EKyUg7KDz",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
@@ -40,130 +40,31 @@
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
       "position": [
-        416,
-        400
+        1648,
+        -272
       ],
-      "id": "e80f35d1-7333-476b-a09e-84ff3cde9fbf",
+      "id": "4d07e4ca-5eee-4cce-935e-e100191af434",
       "name": "Embeddings Google Gemini",
       "credentials": {
         "googlePalmApi": {
-          "id": "3eQyrgnDJrvCtthx",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "parameters": {},
-      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
-      "typeVersion": 1,
-      "position": [
-        208,
-        768
-      ],
-      "id": "d3a8e4dc-bbc4-4b99-a3d8-2f78e743ede0",
-      "name": "Embeddings Google Gemini1",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "3eQyrgnDJrvCtthx",
+          "id": "TXrG7K6EKyUg7KDz",
           "name": "Google Gemini(PaLM) Api account"
         }
       }
     },
     {
       "parameters": {
-        "jsonMode": "expressionData",
-        "jsonData": "={{ $json.value }}",
-        "textSplittingMode": "custom",
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
-      "typeVersion": 1.1,
-      "position": [
-        320,
-        768
-      ],
-      "id": "a44cec1d-7f7b-4bd5-a4a7-56431ed52be6",
-      "name": "Default Data Loader"
-    },
-    {
-      "parameters": {
-        "chunkOverlap": 200,
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
-      "typeVersion": 1,
-      "position": [
-        320,
-        960
-      ],
-      "id": "59c08d20-bdd4-41f5-ac89-277f5e70e253",
-      "name": "Recursive Character Text Splitter"
-    },
-    {
-      "parameters": {
-        "mode": "retrieve-as-tool",
-        "toolDescription": "Llamar a esta herramienta cuando se necesiten conocer la descripción de la empresa",
-        "pineconeIndex": {
-          "__rl": true,
-          "value": "bitworks",
-          "mode": "list",
-          "cachedResultName": "bitworks"
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
-      "typeVersion": 1.3,
-      "position": [
-        416,
-        208
-      ],
-      "id": "e7155a01-7b84-4dc4-acfc-fb2561c370fc",
-      "name": "Pinecone Vector Store2",
-      "credentials": {
-        "pineconeApi": {
-          "id": "yOaJo3BOhn1pyoQg",
-          "name": "PineconeApi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "mode": "insert",
-        "pineconeIndex": {
-          "__rl": true,
-          "value": "bitworks",
-          "mode": "id"
-        },
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
-      "typeVersion": 1.3,
-      "position": [
-        208,
-        560
-      ],
-      "id": "e125c266-6bad-42a4-83fa-81164e67c795",
-      "name": "Pinecone Vector Store",
-      "credentials": {
-        "pineconeApi": {
-          "id": "yOaJo3BOhn1pyoQg",
-          "name": "PineconeApi account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "url": "http://192.168.1.100:8000/api/attributes/client/1",
+        "url": "={{ $('/message').item.json.body.answer_ep }}?session_id={{ $('/message').item.json.body.session_id }}",
         "options": {}
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -64,
-        560
+        1808,
+        -784
       ],
-      "id": "dd24329b-e979-4ad9-871c-03f4b28ac55c",
-      "name": "HTTP Request"
+      "id": "2aa71631-23ad-4462-8010-77f6baa00817",
+      "name": "/answer"
     },
     {
       "parameters": {
@@ -174,11 +75,11 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        -80,
-        -16
+        1104,
+        -784
       ],
-      "id": "8c16a8cc-d46a-438e-bc34-41ce2f3299cb",
-      "name": "Webhook",
+      "id": "83656654-f156-4b6a-81f2-daebc5a953df",
+      "name": "/message",
       "webhookId": "6edb540a-b3ba-47dc-9c34-43ec87bdbc2d"
     },
     {
@@ -191,31 +92,89 @@
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1.3,
       "position": [
-        272,
-        208
+        1472,
+        -496
       ],
-      "id": "748f5b23-4060-4b07-be54-364783cb2e6b",
-      "name": "Postgres Chat Memory",
+      "id": "03c40198-cb7f-4399-80fc-d8c947c03bd0",
+      "name": "Communications",
       "credentials": {
         "postgres": {
-          "id": "XqXXsueusz5jy5Dk",
-          "name": "Postgres account 2"
+          "id": "HLNVs20j5SmVtbIp",
+          "name": "Postgres account"
         }
       }
     },
     {
       "parameters": {
-        "url": "={{ $('Webhook').item.json.body.answer_ep }}?session_id={{ $('Webhook').item.json.body.session_id }}",
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Contiene la información de la empresa",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "bitworks",
+          "mode": "list",
+          "cachedResultName": "bitworks"
+        },
         "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1648,
+        -496
+      ],
+      "id": "e2319b20-317b-49c9-9167-230dfe647008",
+      "name": "Client",
+      "credentials": {
+        "pineconeApi": {
+          "id": "URiwe5gb5HHyDZaK",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utiliza esta herramienta para obtener la lista de productos disponibles",
+        "url": "={{ $('/message').item.json.body.product_ep }}?session_id={{ $('/message').item.json.body.session_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.2,
       "position": [
-        528,
-        -16
+        1520,
+        -1024
       ],
-      "id": "03e88eb0-46cc-46fb-9a82-d865d50be9b0",
-      "name": "HTTP Request1"
+      "id": "1c228ed1-245e-40ac-a226-d1056c64102b",
+      "name": "get_products"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utiliza esta herramienta para obtener las reglas de estricto cumplimiento en la elaboración de las respuestas",
+        "url": "={{ $('/message').item.json.body.rule_ep }}?session_id={{ $('/message').item.json.body.session_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        -1024
+      ],
+      "id": "f6224f47-3895-47de-8cbb-c8073b0887b4",
+      "name": "get_rules"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Utiliza esta herramienta para obtener la información general del negocio y/o empresa",
+        "url": "={{ $('/message').item.json.body.client_ep }}?session_id={{ $('/message').item.json.body.session_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        -1024
+      ],
+      "id": "4dfb9f21-14e3-472f-bbcf-cde3790796ac",
+      "name": "get_business"
     }
   ],
   "pinData": {},
@@ -235,74 +194,25 @@
       "ai_embedding": [
         [
           {
-            "node": "Pinecone Vector Store2",
+            "node": "Client",
             "type": "ai_embedding",
             "index": 0
           }
         ]
       ]
     },
-    "Embeddings Google Gemini1": {
-      "ai_embedding": [
-        [
-          {
-            "node": "Pinecone Vector Store",
-            "type": "ai_embedding",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Default Data Loader": {
-      "ai_document": [
-        [
-          {
-            "node": "Pinecone Vector Store",
-            "type": "ai_document",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Recursive Character Text Splitter": {
-      "ai_textSplitter": [
-        [
-          {
-            "node": "Default Data Loader",
-            "type": "ai_textSplitter",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Pinecone Vector Store2": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Pinecone Vector Store": {
-      "main": [
-        []
-      ]
-    },
-    "HTTP Request": {
+    "AI Agent": {
       "main": [
         [
           {
-            "node": "Pinecone Vector Store",
+            "node": "/answer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Webhook": {
+    "/message": {
       "main": [
         [
           {
@@ -313,7 +223,7 @@
         ]
       ]
     },
-    "Postgres Chat Memory": {
+    "Communications": {
       "ai_memory": [
         [
           {
@@ -324,27 +234,60 @@
         ]
       ]
     },
-    "AI Agent": {
-      "main": [
+    "Client": {
+      "ai_tool": [
         [
           {
-            "node": "HTTP Request1",
-            "type": "main",
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_products": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_rules": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_business": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "b8e83a0f-bc37-4798-8281-49edbff9d2f5",
+  "versionId": "2e1e0dbd-fd76-46fe-8acc-6f7f1c42a6f0",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "c6b1343ba1a2ad347513cf45245e3a3580113a0c2ec0aa265ceb36b0d1ddf0fd"
+    "instanceId": "079be7637e9e42966fac5613f4c8bd7d68883972bb320675d1c1fc56afb18fb1"
   },
-  "id": "opOILnwfwKEZ2Xel",
+  "id": "L7ymDLnP4Or0LVEi",
   "tags": []
 }

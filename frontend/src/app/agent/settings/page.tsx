@@ -261,13 +261,22 @@ export default function SettingsPage() {
             }
           />
           <Divider />
-          <Box sx={{ overflow: 'auto', flexGrow: 1, backgroundColor: 'grey.50' }}>
+          <Box
+            sx={{
+              flexGrow: 1,
+              overflow: 'auto',
+              backgroundColor: 'grey.50',
+              ...(settings.length === 0 && {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }),
+            }}
+          >
             {settings.length === 0 ? (
-              <Box sx={{ height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                <Typography variant="h6" color="text.secondary">
-                  No settings found.
-                </Typography>
-              </Box>
+              <Typography variant="h6" color="text.secondary">
+                No settings found.
+              </Typography>
             ) : (
               <Table stickyHeader size="small">
                 <TableHead>
