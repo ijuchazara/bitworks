@@ -2,20 +2,21 @@ from fastapi import FastAPI, Depends, WebSocket, WebSocketDisconnect, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import Dict, List
-from datetime import date
+from datetime import date, datetime
 import asyncio
 import sys
 import os
 import httpx
 import json
+import uuid
 from dotenv import load_dotenv
-
-load_dotenv()
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from shared.database import get_db, engine
-from shared.models import Base, User, Client, Conversation, Message, Setting, Attribute
+from shared.models import Base, User, Client, Setting, Attribute, Communication
+
+load_dotenv()
 
 QUESTION_ENDPOINT = os.getenv("QUESTION_ENDPOINT", "/question")
 ANSWER_ENDPOINT = os.getenv("ANSWER_ENDPOINT", "/answer")
@@ -59,60 +60,19 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-def build_prompt(db: Session, client: Client, user: User, today_conversation: Conversation) -> str:
-    attributes_query = db.query(Attribute).filter(Attribute.client_id == client.id).all()
-
-    context_parts = [f"Contexto de la empresa {client.name}:"]
-    for attr in attributes_query:
-        if attr.template:
-            context_parts.append(f"- {attr.template.description}: {attr.value}")
-
-    context_str = "\n".join(context_parts)
-
-    messages_to_format = []
-
-    message_count_today = db.query(Message).filter(Message.conversation_id == today_conversation.id).count()
-
-    if message_count_today == 1:
-        previous_conversation = db.query(Conversation).filter(
-            Conversation.user_id == user.id,
-            Conversation.id != today_conversation.id
-        ).order_by(Conversation.created_at.desc()).first()
-        if previous_conversation:
-            messages_to_format.extend(
-                db.query(Message).filter(Message.conversation_id == previous_conversation.id).order_by(
-                    Message.timestamp).all()
-            )
-
-    messages_to_format.extend(
-        db.query(Message).filter(Message.conversation_id == today_conversation.id).order_by(Message.timestamp).all()
-    )
-
-    history_str = "\n".join([f"{msg.role}: {msg.content}" for msg in messages_to_format])
-
-    prompt_parts = [
-        context_str,
-        "\nResponde a la ultima pregunta del siguiente historial:",
-        history_str
-    ]
-
-    return "\n".join(prompt_parts)
-
-
-async def call_n8n_webhook(db: Session, user: User, client: Client, conversation: Conversation):
+async def call_n8n_webhook(db: Session, user: User, client: Client, text: str):
     webhook_setting = db.query(Setting).filter(Setting.key == "URL_AGENT").first()
     answer_setting = db.query(Setting).filter(Setting.key == "URL_ANSWER_HOST").first()
     if webhook_setting and webhook_setting.value:
         webhook_url = webhook_setting.value
 
-        prompt = build_prompt(db, client, user, conversation)
+        prompt = text
 
         agent_port = os.getenv("AGENT_PORT", "8001")
 
         payload = {
-            "user_id": user.id,
-            "client_code": client.client_code,
-            "answer_endpoint": f"{answer_setting.value}:{agent_port}{ANSWER_ENDPOINT}",
+            "session_id": user.session_id,
+            "answer_ep": f"{answer_setting.value}:{agent_port}{ANSWER_ENDPOINT}",
             "prompt": prompt,
         }
         try:
@@ -138,62 +98,43 @@ async def add_message(username: str, client_code: str, texto: str, db: Session =
         db.add(user)
         db.commit()
         db.refresh(user)
+        
+        user.session_id = str(uuid.uuid4())
+        db.commit()
+
     else:
         client = user.client
 
-    today_date = date.today()
-    conversation = db.query(Conversation).filter(
-        Conversation.user_id == user.id,
-        Conversation.created_at >= today_date
-    ).first()
-
-    if not conversation:
-        conversation = Conversation(user_id=user.id, client_id=user.client_id,
-                                    title=f"Conversación {user.username} - {today_date.strftime('%d/%m/%Y')}")
-        db.add(conversation)
-        db.commit()
-        db.refresh(conversation)
-
-    db_message = Message(conversation_id=conversation.id, role="user", content=texto)
-    db.add(db_message)
-    db.commit()
-
     asyncio.create_task(manager.send_personal_message("new_message", user.id))
-    asyncio.create_task(call_n8n_webhook(db, user, client, conversation))
+    asyncio.create_task(call_n8n_webhook(db, user, client, texto))
 
     return {"status": "message received"}
 
 
 @app.get(ANSWER_ENDPOINT)
-async def add_response(user_id: int, client_code: str, texto: str, db: Session = Depends(get_db)):
-    user = db.query(User).join(Client).filter(
-        User.id == user_id,
-        Client.client_code == client_code
-    ).first()
+async def add_response(session_id: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.session_id == session_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found or does not belong to the specified client")
+        raise HTTPException(status_code=404, detail="User with the specified session_id not found")
 
-    conversation = db.query(Conversation).filter(
-        Conversation.user_id == user.id
-    ).order_by(Conversation.created_at.desc()).first()
+    last_communication = db.query(Communication).filter(Communication.session_id == session_id).order_by(Communication.id.desc()).first()
 
-    if not conversation:
-        raise HTTPException(status_code=404, detail="No conversation found for this user")
+    if not last_communication:
+        return {"status": "no new message to send"}
 
-    db_message = Message(conversation_id=conversation.id, role="agent", content=texto)
-    db.add(db_message)
-    db.commit()
-    db.refresh(db_message)
+    # Handle cases where created_at might be None for old records
+    created_at_iso = last_communication.created_at.isoformat() if last_communication.created_at else datetime.utcnow().isoformat()
 
-    message_data = {
-        "id": db_message.id,
-        "role": db_message.role,
-        "content": db_message.content,
-        "timestamp": db_message.timestamp.isoformat()
+    response_data = {
+        "id": last_communication.id,
+        "session_id": last_communication.session_id,
+        "message": last_communication.message,
+        "created_at": created_at_iso
     }
 
-    asyncio.create_task(manager.send_personal_message(json.dumps(message_data), user_id))
-    return {"status": "response sent"}
+    asyncio.create_task(manager.send_personal_message(json.dumps(response_data), user.id))
+
+    return {"status": "notification sent"}
 
 
 @app.websocket("/ws/{user_id}")
@@ -208,6 +149,5 @@ async def websocket_endpoint(websocket: WebSocket, user_id: int):
 
 if __name__ == "__main__":
     import uvicorn
-
-    port = int(os.getenv("AGENT_PORT", "8000"))
+    port = int(os.getenv("AGENT_PORT", "8001"))
     uvicorn.run(app, host="0.0.0.0", port=port)

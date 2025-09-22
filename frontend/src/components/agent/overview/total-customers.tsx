@@ -6,17 +6,18 @@ import Stack from '@mui/material/Stack';
 import type { SxProps } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { ArrowDownIcon } from '@phosphor-icons/react/dist/ssr/ArrowDown';
-import { ArrowUpIcon } from '@phosphor-icons/react/dist/ssr/ArrowUp';
+import { ArrowUpIcon } from '@phosphor-icons/react/dist/ssr/ArrowUp'; // Corrected line
 import { UsersIcon } from '@phosphor-icons/react/dist/ssr/Users';
 
 export interface TotalCustomersProps {
   diff?: number;
-  trend: 'up' | 'down';
+  trend?: 'up' | 'down';
   sx?: SxProps;
   value: string;
+  title?: string;
 }
 
-export function TotalCustomers({ diff, trend, sx, value }: TotalCustomersProps): React.JSX.Element {
+export function TotalCustomers({ diff, trend, sx, value, title }: TotalCustomersProps): React.JSX.Element {
   const TrendIcon = trend === 'up' ? ArrowUpIcon : ArrowDownIcon;
   const trendColor = trend === 'up' ? 'var(--mui-palette-success-main)' : 'var(--mui-palette-error-main)';
 
@@ -27,7 +28,7 @@ export function TotalCustomers({ diff, trend, sx, value }: TotalCustomersProps):
           <Stack direction="row" sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }} spacing={3}>
             <Stack spacing={1}>
               <Typography color="text.secondary" variant="overline">
-                Total Customers
+                {title || 'Total Customers'}
               </Typography>
               <Typography variant="h4">{value}</Typography>
             </Stack>

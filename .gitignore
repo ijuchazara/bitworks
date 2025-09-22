@@ -1,34 +1,74 @@
-# Python
+# =================================================================
+# Environment Variables
+# Never commit secrets, API keys, or environment-specific files.
+# =================================================================
+.env
+.env.*
+!.env.example
+
+# =================================================================
+# Python / Backend
+# =================================================================
+# Virtual Environments
+/venv/
+/env/
+/ENV/
+/.venv/
+
+# Cache and artifacts
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# Build and distribution
+/build/
+/dist/
+/*.egg-info/
 
-# IDE
-.vscode/
+# =================================================================
+# Next.js / Frontend
+# =================================================================
+# Dependencies
+/frontend/node_modules/
+
+# Build outputs
+/frontend/.next/
+/frontend/out/
+
+# Logs
+/frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+
+# Local environment variables for Next.js
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# =================================================================
+# IDE / Editor Files
+# =================================================================
 .idea/
+.vscode/
 *.swp
 *.swo
 
-# OS
+# =================================================================
+# Operating System Files
+# =================================================================
 .DS_Store
 Thumbs.db
 
-# Database
+# =================================================================
+# Logs & Databases
+# =================================================================
+*.log
 *.db
 *.sqlite
-
-# Logs
-*.log
+*.sqlite3

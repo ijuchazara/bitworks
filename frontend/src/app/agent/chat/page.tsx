@@ -25,7 +25,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { CaretDown as CaretDownIcon } from '@phosphor-icons/react/dist/ssr/CaretDown';
 import { PaperPlaneTilt as PaperPlaneTiltIcon } from '@phosphor-icons/react/dist/ssr/PaperPlaneTilt';
 
-// Tipos de datos
+// Interfaces
 interface Client {
   id: number;
   client_code: string;
@@ -38,28 +38,45 @@ interface User {
   username: string;
 }
 
-interface Message {
-  id: number | string;
-  role: 'user' | 'assistant';
+interface MessagePayload {
+  type: 'human' | 'ai' | 'user' | 'agent';
   content: string;
 }
 
-interface ChatUser {
+interface Communication {
+  id: number | string;
+  session_id: string;
+  message: MessagePayload | string;
+  created_at?: string; // Add created_at field
+}
+
+interface UserSession {
   user_id: number;
   username: string;
+  session_id: string;
+  client_id: number;
   client_code: string;
   client_name: string;
-  conversation_id: string;
-  messages: Message[];
 }
 
 const AGENT_PORT = process.env.NEXT_PUBLIC_AGENT_PORT || '8001';
 
+const parseMessage = (message: MessagePayload | string): MessagePayload => {
+  if (typeof message === 'string') {
+    try {
+      return JSON.parse(message);
+    } catch (e) {
+      return { type: 'ai', content: message };
+    }
+  }
+  return message;
+};
+
 export default function ChatPage() {
   const theme = useTheme();
 
-  const [chatUser, setChatUser] = useState<ChatUser | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [communications, setCommunications] = useState<Communication[]>([]);
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
 
@@ -82,7 +99,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [communications, isTyping]);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -120,25 +137,34 @@ export default function ChatPage() {
   }, [selectedClient]);
 
   useEffect(() => {
-    if (!chatUser) return;
-    const wsUrl = `ws://localhost:${AGENT_PORT}/ws/${chatUser.user_id}`;
+    if (!userSession) return;
+    const wsUrl = `ws://localhost:${AGENT_PORT}/ws/${userSession.user_id}`;
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => console.log('WebSocket connection established');
     ws.onmessage = (event) => {
-      setIsTyping(false);
       try {
-        const newMessage = JSON.parse(event.data);
-        setMessages((prevMessages) => [...prevMessages, newMessage]);
+        // Attempt to parse the data as a full message object.
+        const newCommunication = JSON.parse(event.data);
+
+        // If parsing succeeds, it's a real message from the AI.
+        // Now we can stop the typing indicator and add the message.
+        setIsTyping(false);
+        setCommunications((prev) => [...prev, newCommunication]);
+
       } catch (e) {
+        // If parsing fails, it's likely a control message like "new_message".
+        // In this case, we do nothing and keep the typing indicator active.
         if (event.data === 'new_message') {
-          console.log('User message processed by agent.');
+          console.log('Agent has received the message and is processing...');
+        } else {
+          console.warn('Received non-JSON WebSocket message:', event.data);
         }
       }
     };
     ws.onclose = () => console.log('WebSocket connection closed');
     ws.onerror = (error) => console.error('WebSocket error:', error);
     return () => ws.close();
-  }, [chatUser]);
+  }, [userSession]);
 
   const initializeUser = async () => {
     if (!selectedClient || !selectedUsername.trim()) {
@@ -147,29 +173,40 @@ export default function ChatPage() {
     }
     setError(null);
     try {
-      const response = await fetch(`/api/load_conversation?username=${selectedUsername}&client_code=${selectedClient.client_code}`);
+      const response = await fetch(`/api/users/session?username=${selectedUsername}&client_code=${selectedClient.client_code}`);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: 'Error al cargar la conversación' }));
+        const errorData = await response.json().catch(() => ({ detail: 'Error al iniciar sesión' }));
         throw new Error(errorData.detail);
       }
-      const data: ChatUser = await response.json();
-      setChatUser(data);
-      setMessages(data.messages);
+      const data = await response.json();
+      setUserSession({
+        user_id: data.user_id,
+        username: data.username,
+        session_id: data.session_id,
+        client_id: data.client_id,
+        client_code: data.client_code,
+        client_name: data.client_name,
+      });
+      setCommunications(data.communications || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Un error inesperado ocurrió');
     }
   };
 
   const sendMessage = async () => {
-    if (!messageText.trim() || !chatUser?.username) return;
-    const tempMessage: Message = { id: Date.now(), role: 'user', content: messageText };
-    setMessages((prevMessages) => [...prevMessages, tempMessage]);
+    if (!messageText.trim() || !userSession) return;
+    const tempComm: Communication = {
+      id: Date.now(),
+      session_id: userSession.session_id,
+      message: { type: 'user', content: messageText },
+      created_at: new Date().toISOString(), // Add timestamp for immediate display
+    };
+    setCommunications((prev) => [...prev, tempComm]);
     const currentMessage = messageText;
     setMessageText('');
     setIsTyping(true);
     try {
-      const response = await fetch(`http://localhost:${AGENT_PORT}/question?username=${chatUser.username}&client_code=${chatUser.client_code}&texto=${encodeURIComponent(currentMessage)}`);
-      if (!response.ok) throw new Error('Error al enviar el mensaje');
+      await fetch(`http://localhost:${AGENT_PORT}/question?username=${userSession.username}&client_code=${userSession.client_code}&texto=${encodeURIComponent(currentMessage)}`);
     } catch (error) {
       setIsTyping(false);
       setError('Error al enviar el mensaje al agente.');
@@ -184,8 +221,8 @@ export default function ChatPage() {
   };
 
   const changeUser = () => {
-    setChatUser(null);
-    setMessages([]);
+    setUserSession(null);
+    setCommunications([]);
     setSelectedClient(null);
     setSelectedUsername('');
     setIsNewUser(false);
@@ -205,7 +242,7 @@ export default function ChatPage() {
     handleUserMenuClose();
   };
 
-  if (!chatUser) {
+  if (!userSession) {
     return (
       <Box sx={{ p: 2 }}>
         <Card>
@@ -292,7 +329,7 @@ export default function ChatPage() {
     <Box sx={{ p: 2, height: 'calc(100vh - 100px)', display: 'flex' }}>
       <Card sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
         <CardHeader
-          title={chatUser.client_name}
+          title={userSession.client_name}
           action={
             <>
               <Button
@@ -304,7 +341,7 @@ export default function ChatPage() {
                 endIcon={<CaretDownIcon />}
                 sx={{ color: 'text.primary' }}
               >
-                {chatUser.username}
+                {userSession.username}
               </Button>
               <Menu
                 id="user-menu"
@@ -322,16 +359,49 @@ export default function ChatPage() {
         <Box sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <Paper sx={{ borderRadius: 0, flexGrow: 1, overflow: 'auto', p: 2, bgcolor: theme.palette.grey[50] }}>
             <Stack spacing={2}>
-              {messages.map((msg) => (
-                <Box key={msg.id} sx={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-                  <Paper
-                    elevation={2}
-                    sx={{ p: 1.5, maxWidth: '70%', bgcolor: msg.role === 'user' ? alpha(theme.palette.primary.main, 0.1) : theme.palette.grey[200] }}
+              {communications.map((comm) => {
+                const parsedMsg = parseMessage(comm.message);
+                const isHuman = parsedMsg.type === 'human' || parsedMsg.type === 'user';
+
+                return (
+                  <Box
+                    key={comm.id}
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: isHuman ? 'flex-end' : 'flex-start',
+                    }}
                   >
-                    <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{msg.content}</Typography>
-                  </Paper>
-                </Box>
-              ))}
+                    <Paper
+                      elevation={2}
+                      sx={{
+                        p: 1.5,
+                        maxWidth: '70%',
+                        bgcolor: isHuman ? alpha(theme.palette.primary.main, 0.1) : theme.palette.grey[200],
+                      }}
+                    >
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                        {parsedMsg.content}
+                      </Typography>
+                    </Paper>
+                    {comm.created_at && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          mt: 0.5,
+                          mx: 1,
+                          color: 'text.secondary',
+                        }}
+                      >
+                        {new Date(comm.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
               {isTyping && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-start' }}>
                   <Paper elevation={2} sx={{ p: 1.5, bgcolor: theme.palette.grey[200] }}>

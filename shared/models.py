@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func  # Import func
 from datetime import datetime
 
 Base = declarative_base()
@@ -35,11 +37,10 @@ class Client(Base):
     client_code = Column(String, unique=True, index=True, nullable=False)
     name = Column(String, unique=True, index=True, nullable=False)
     status = Column(String, nullable=False, default='Activo')
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, server_default=func.now()) # Use server default
 
     users = relationship("User", back_populates="client")
     attributes = relationship("Attribute", back_populates="client")
-    conversations = relationship("Conversation", back_populates="client")
 
 
 class Attribute(Base):
@@ -61,35 +62,18 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
+    session_id = Column(String, nullable=True)
     status = Column(String, nullable=False, default='Activo')
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, server_default=func.now()) # Use server default
 
     client = relationship("Client", back_populates="users")
-    conversations = relationship("Conversation", back_populates="user")
 
 
-class Conversation(Base):
-    __tablename__ = "conversations"
-
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
-    title = Column(String, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    user = relationship("User", back_populates="conversations")
-    client = relationship("Client", back_populates="conversations")
-    messages = relationship("Message", back_populates="conversation")
-
-
-class Message(Base):
-    __tablename__ = "messages"
+class Communication(Base):
+    __tablename__ = "communication"
 
     id = Column(Integer, primary_key=True, index=True)
-    conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
-    role = Column(String, nullable=False)
-    content = Column(Text, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-    conversation = relationship("Conversation", back_populates="messages")
+    session_id = Column(String, nullable=False)
+    message = Column(JSONB, nullable=False)
+    # Set server-side default and make it non-nullable
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
